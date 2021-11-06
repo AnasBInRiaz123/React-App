@@ -33,7 +33,7 @@ app.use(cors({
     credentials: true
 }))
 
-app.get('/', express.static(path.join(__dirname, 'web/build')))
+app.use('/', express.static(path.join(__dirname, 'web/build')))
 
 app.post('/api/v1/login', (req, res, next) => {
 
