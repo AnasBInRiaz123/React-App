@@ -11,12 +11,11 @@ import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 
 
-
 const SECRET = process.env.SECRET || "12345"
 const PORT = process.env.PORT || 5001
 const app = express()
 
-mongoose.connect('mongodb+srv://anas:anas@cluster0.k6dx3.mongodb.net/myFirstDatabase?retryWrites=true&w=majority');
+mongoose.connect('mongodb+srv://dbuser:dbpassword@cluster0.nr4e4.mongodb.net/myFirstDatabase?retryWrites=true&w=majority');
 
 const User = mongoose.model('User', {
     name: String,
@@ -24,7 +23,14 @@ const User = mongoose.model('User', {
     password: String,
     created: { type: Date, default: Date.now },
 });
+const Post = mongoose.model("Post", {
+    postText: String,
+    created: { type: Date, default: Date.now },
 
+    userId: String,
+    name: String,
+    email: String,
+})
 app.use(express.json())
 app.use(cookieParser())
 
@@ -34,6 +40,10 @@ app.use(cors({
 }))
 
 app.use('/', express.static(path.join(__dirname, 'web/build')))
+app.get("/", (req, res, next) => {
+    res.sendFile(path.join(__dirname, "./web/build/index.html"))
+})
+
 
 app.post('/api/v1/login', (req, res, next) => {
 
@@ -136,7 +146,7 @@ app.use((req, res, next) => {
             if (!err) {
                 next();
             } else {
-                res.status(401).send("Un-Authenticated")
+                res.status(401).sendFile(path.join(__dirname, "./web/build/index.html"))
             }
 
         })
@@ -178,6 +188,52 @@ app.put('/api/v1/profile', (req, res) => {
 app.delete('/api/v1/profile', (req, res) => {
     res.send('profile deleted')
 })
+
+app.post("/api/v1/post", (req, res) => {
+    const newPost = new Post({
+        postText: req.body.postText,
+        userId: req.body._decoded._id,
+        name: req.body._decoded.name,
+        email: req.body._decoded.email
+    });
+    newPost.save().then(() => {
+        console.log("Post created");
+        res.send("Post created");
+    });
+});
+
+app.delete("/api/v1/post", (req, res) => {
+    Post.deleteOne({ _id: req.body.id, userId: req.body._decoded._id }, (err, data) => {
+        res.send("Post deleted");
+    });
+});
+
+app.put("/api/v1/post", (req, res) => {
+    Post.updateOne({
+        _id: req.body.id,
+        userId: req.body._decoded._id
+    }, {
+        postText: req.body.postText
+    }, (err, data) => {
+        res.send("Post deleted");
+    });
+});
+
+app.get("/api/v1/posts", (req, res) => {
+
+    const page = Number(req.query.page);
+
+    console.log("page: ", page);
+
+    Post.find({})
+        .sort({ created: "desc" })
+        .skip(page)
+        .limit(2)
+        .exec(function (err, data) {
+            res.send(data);
+        });
+});
+
 app.get("/**", (req, res, next) => {
     res.sendFile(path.join(__dirname, "./web/build/index.html"))
     // res.redirect("/")
